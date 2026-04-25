@@ -1,40 +1,25 @@
-# Base image for Python backend
-FROM python:3.9-slim as backend
-
-# Install system dependencies for OpenCV and DeepFace
-RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app/backend
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY backend/ .
-
-# Base image for Node frontend
-FROM node:20-slim as frontend
-WORKDIR /app/frontend
-COPY frontend/package*.json ./
-RUN npm install
-COPY frontend/ .
-RUN npm run build
-
-# Final image
+# Use a Python base image with some pre-installed dependencies
 FROM python:3.9-slim
+
+# Install system dependencies for OpenCV
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=backend /app/backend /app/backend
-COPY --from=frontend /app/frontend/dist /app/frontend/dist
 
-# Install production requirements
-WORKDIR /app/backend
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy only the backend since we have the static frontend inside it
+COPY backend/ ./
+
+# Install dependencies
+# We use a custom flag to try and stay within memory limits
+RUN pip install --no-cache-dir flask flask-cors opencv-python-headless numpy
+
+# Note: DeepFace is excluded here to ensure the build succeeds on Render Free Tier.
+# If you upgrade to a paid plan with more RAM, uncomment the line below.
+# RUN pip install --no-cache-dir deepface tf-keras tensorflow
 
 EXPOSE 5000
+
 CMD ["python", "app.py"]
