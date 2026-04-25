@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: face-auth-system
+    env: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 5000
+    disk:
+      name: face-db
+      mountPath: /app/backend/database
+      sizeGB: 1

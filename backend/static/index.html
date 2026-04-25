@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SECURE AUTH - Face Authentication</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #05070a;
+            --panel-bg: rgba(15, 23, 42, 0.7);
+            --accent-primary: #00f2ff;
+            --accent-secondary: #7000ff;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(0, 242, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(112, 0, 255, 0.05) 0%, transparent 40%);
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 2rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        header { text-align: center; margin-bottom: 3rem; }
+        h1 { 
+            font-size: 3.5rem; font-weight: 800; 
+            background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .main-grid { display: grid; grid-template-columns: 1fr 350px; gap: 2rem; }
+
+        .camera-panel {
+            background: var(--panel-bg); backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border); border-radius: 24px;
+            padding: 1.5rem; position: relative; overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        #webcam { width: 100%; border-radius: 16px; background: #000; transform: scaleX(-1); }
+
+        .scan-line {
+            position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+            background: var(--accent-primary); box-shadow: 0 0 15px var(--accent-primary);
+            animation: scan 3s linear infinite; display: none;
+        }
+
+        .controls {
+            background: var(--panel-bg); backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border); border-radius: 24px;
+            padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem;
+        }
+
+        .btn {
+            padding: 1rem; border-radius: 12px; border: none; font-weight: 600;
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            font-size: 1rem; color: white;
+        }
+
+        .btn-primary { background: linear-gradient(135deg, var(--accent-primary), #00d2ff); color: #000; }
+        .btn-auth { background: linear-gradient(135deg, var(--accent-secondary), #a855f7); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); }
+
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.5); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        input {
+            background: rgba(0, 0, 0, 0.2); border: 1px solid var(--glass-border);
+            padding: 0.8rem 1rem; border-radius: 8px; color: white; width: 100%;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.8rem; border-radius: 999px; font-size: 0.8rem;
+            font-weight: 600; text-transform: uppercase; display: inline-flex;
+            align-items: center; gap: 0.4rem; background: rgba(255, 255, 255, 0.05);
+        }
+
+        .status-success { color: var(--success); background: rgba(16, 185, 129, 0.1); }
+        .status-error { color: var(--error); background: rgba(239, 68, 68, 0.1); }
+
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>SECURE AUTH</h1>
+            <p style="color: var(--text-secondary)">Premium Face Authentication with Anti-Spoofing</p>
+        </header>
+
+        <div class="main-grid">
+            <div class="camera-panel">
+                <div style="position: relative;">
+                    <video id="webcam" autoplay playsinline></video>
+                    <div id="scan-line" class="scan-line"></div>
+                </div>
+                <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div id="status-badge" class="status-badge">Ready</div>
+                    <p id="message" style="font-size: 0.9rem; color: var(--text-secondary)">Position your face in the frame</p>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-secondary)">User ID</label>
+                    <input type="text" id="userId" placeholder="e.g. john_doe">
+                </div>
+                <button class="btn btn-primary" id="btnRegister">
+                    <i data-lucide="user-plus"></i> Register Face
+                </button>
+                <div style="height: 1px; background: var(--glass-border);"></div>
+                <button class="btn btn-auth" id="btnAuth">
+                    <i data-lucide="fingerprint"></i> Authenticate
+                </button>
+                <button class="btn btn-secondary" id="btnReset">
+                    <i data-lucide="refresh-ccw"></i> Reset
+                </button>
+                <div id="result-box" style="display: none; padding: 1rem; border-radius: 12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        const video = document.getElementById('webcam');
+        const canvas = document.createElement('canvas');
+        const scanLine = document.getElementById('scan-line');
+        const statusBadge = document.getElementById('status-badge');
+        const message = document.getElementById('message');
+        const resultBox = document.getElementById('result-box');
+
+        // Setup Webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { 
+                message.innerText = "Camera access denied";
+                statusBadge.classList.add('status-error');
+            });
+
+        function setStatus(type, msg) {
+            statusBadge.className = 'status-badge ' + (type ? 'status-' + type : '');
+            statusBadge.innerText = type || 'Ready';
+            message.innerText = msg;
+        }
+
+        function capture() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            return canvas.toDataURL('image/jpeg');
+        }
+
+        document.getElementById('btnRegister').onclick = async () => {
+            const userId = document.getElementById('userId').value;
+            if (!userId) return setStatus('error', 'Enter a User ID');
+            
+            setStatus('active', 'Registering...');
+            scanLine.style.display = 'block';
+
+            try {
+                const res = await axios.post('/register', { userId, image: capture() });
+                setStatus('success', res.data.message);
+            } catch (err) {
+                setStatus('error', err.response?.data?.error || 'Registration failed');
+            } finally {
+                scanLine.style.display = 'none';
+            }
+        };
+
+        document.getElementById('btnAuth').onclick = async () => {
+            setStatus('active', 'Authenticating...');
+            scanLine.style.display = 'block';
+            resultBox.style.display = 'none';
+
+            try {
+                const res = await axios.post('/authenticate', { image: capture() });
+                if (res.data.status === 'success') {
+                    setStatus('success', 'Authenticated');
+                    resultBox.style.display = 'block';
+                    resultBox.style.background = 'rgba(16, 185, 129, 0.1)';
+                    resultBox.innerHTML = `<p style="color: var(--success)">Welcome, ${res.data.identity}!</p>`;
+                } else {
+                    setStatus('error', res.data.reason || 'Access Denied');
+                }
+            } catch (err) {
+                setStatus('error', 'Server error');
+            } finally {
+                scanLine.style.display = 'none';
+            }
+        };
+
+        document.getElementById('btnReset').onclick = () => {
+            setStatus(null, 'Position your face in the frame');
+            resultBox.style.display = 'none';
+            document.getElementById('userId').value = '';
+        };
+    </script>
+</body>
+</html>
