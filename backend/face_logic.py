@@ -42,59 +42,61 @@ class FaceProcessor:
 
     def check_liveness(self, img):
         """
-        Secure Anti-Spoofing logic.
-        We check for 'eye blink' or 'texture consistency'.
-        For this optimized version, we use a Laplcian variance check 
-        to detect blurriness common in photo spoofs.
+        Refined Anti-Spoofing logic.
+        Lowered threshold for better compatibility with diverse webcams.
         """
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        print(f"Liveness Check - Laplacian Variance: {laplacian_var}")
         
-        # Typical threshold for real faces is > 100
-        # Photos/Screens often appear blurry or have low variance
-        if laplacian_var < 50:
+        # Lowered to 20 to be more permissive for lower-quality webcams
+        if laplacian_var < 20:
             return False
         return True
 
     def register_face(self, user_id, img):
         file_path = os.path.join(self.db_path, f"{user_id}.jpg")
-        # Save as BGR for consistency
         bgr_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         cv2.imwrite(file_path, bgr_img)
-        self.load_known_faces() # Reload memory
+        print(f"Registered new face for: {user_id}")
+        self.load_known_faces() 
         return True
 
     def authenticate(self, img):
         try:
             if not self.check_liveness(img):
+                print("Authentication Failed: Spoof Detected")
                 return {"status": "fail", "reason": "Spoof detected (Liveness Check Failed)"}
 
-            # Find faces in the current frame
             face_locations = face_recognition.face_locations(img)
             face_encodings = face_recognition.face_encodings(img, face_locations)
 
             if not face_encodings:
+                print("Authentication Failed: No face detected in frame")
                 return {"status": "fail", "reason": "No face detected"}
 
+            print(f"Detected {len(face_encodings)} face(s) in frame. Comparing with {len(self.known_names)} known faces.")
+            
             for face_encoding in face_encodings:
-                # Compare with database
-                matches = face_recognition.compare_faces(self.known_encodings, face_encoding, tolerance=0.5)
+                # Tolerance 0.6 is the standard default for face_recognition
+                matches = face_recognition.compare_faces(self.known_encodings, face_encoding, tolerance=0.6)
                 
                 if True in matches:
                     first_match_index = matches.index(True)
                     name = self.known_names[first_match_index]
                     
-                    # Calculate distance for confidence
                     face_distances = face_recognition.face_distance(self.known_encodings, face_encoding)
                     best_match_index = np.argmin(face_distances)
                     distance = face_distances[best_match_index]
                     
+                    print(f"Authentication Successful: {name} (Distance: {distance})")
                     return {
                         "status": "success", 
                         "identity": name, 
                         "distance": float(distance)
                     }
             
+            print("Authentication Failed: No matching face found")
             return {"status": "fail", "reason": "Face not recognized"}
         except Exception as e:
             print(f"Authentication error: {e}")
