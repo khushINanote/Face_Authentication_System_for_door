@@ -12,6 +12,9 @@ WORKDIR /app
 # Copy only the backend since we have the static frontend inside it
 COPY backend/ ./
 
+# Create and set permissions for the database
+RUN mkdir -p /app/database && chmod 777 /app/database
+
 # Install dependencies
 # We use a custom flag to try and stay within memory limits
 RUN pip install --no-cache-dir flask flask-cors opencv-python-headless numpy

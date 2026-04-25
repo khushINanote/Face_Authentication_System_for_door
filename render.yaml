@@ -14,5 +14,5 @@ services:
         value: 5000
     disk:
       name: face-db
-      mountPath: /app/backend/database
+      mountPath: /app/database
       sizeGB: 1
